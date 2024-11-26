@@ -1,5 +1,5 @@
 use crate::utils::{determine_code_type, euclidean_distance, kmeans2};
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use ndarray::{s, Array2, Array3};
 
 #[derive(Debug, Clone, Copy)]
