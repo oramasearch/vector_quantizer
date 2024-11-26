@@ -4,6 +4,7 @@ use ndarray::{s, Array1, Array2, ArrayView1, Axis};
 use ndarray_stats::QuantileExt;
 use rand::distr::{Distribution, Uniform};
 use rand::seq::SliceRandom;
+use rand::Rng;
 use std::f32;
 use std::ops::AddAssign;
 
@@ -84,6 +85,9 @@ pub fn kmeans2(
         for (i, count) in counts.iter().enumerate() {
             if *count > 0 {
                 new_centroids.row_mut(i).mapv_inplace(|x| x / *count as f32);
+            } else {
+                let random_idx = rand::thread_rng().gen_range(0..n_samples);
+                new_centroids.row_mut(i).assign(&data.row(random_idx));
             }
         }
 
@@ -99,7 +103,7 @@ fn check_convergence(new_centroids: &Array2<f32>, old_centroids: &Array2<f32>) -
     let diff = new_centroids - old_centroids;
     let binding = diff.mapv(|x| x.abs()).sum_axis(Axis(1));
     let max_change = binding.max().unwrap();
-    *max_change < 1e-6
+    *max_change < 1e-4
 }
 
 pub fn euclidean_distance(a: &ArrayView1<f32>, b: &ArrayView1<f32>) -> f32 {
@@ -233,7 +237,7 @@ mod tests {
     // Edge Case: All data points are the same.
     #[test]
     fn test_kmeans_identical_points() {
-        let data = Array2::<f32>::from_elem((100, 10), 1.0); // All points are [1.0, 1.0, ..., 1.0]
+        let data = Array2::<f32>::from_elem((100, 10), 1.0); // All points are identical
         let result = kmeans2(&data, 3, 10, "points");
         assert!(
             result.is_ok(),
@@ -358,25 +362,19 @@ mod tests {
     #[test]
     fn test_check_convergence_function() {
         let centroids_old = create_random_vectors(3, 10);
-        let centroids_new = centroids_old.clone(); // Identical centroids
+        let centroids_new = centroids_old.clone();
         let has_converged = check_convergence(&centroids_new, &centroids_old);
-        assert!(
-            has_converged,
-            "check_convergence should return true for identical centroids"
-        );
+        assert!(has_converged, "Should converge with identical centroids");
 
-        let centroids_new = &centroids_old + 1e-7;
+        let centroids_new = &centroids_old + 1e-5;
         let has_converged = check_convergence(&centroids_new, &centroids_old);
-        assert!(
-            has_converged,
-            "check_convergence should return true for negligible changes"
-        );
+        assert!(has_converged, "Should converge with negligible changes");
 
-        let centroids_new = &centroids_old + 1e-4;
+        let centroids_new = &centroids_old + 1e-3;
         let has_converged = check_convergence(&centroids_new, &centroids_old);
         assert!(
             !has_converged,
-            "check_convergence should return false for significant changes"
+            "Should not converge with significant changes"
         );
     }
 }

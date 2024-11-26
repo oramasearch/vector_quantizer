@@ -390,11 +390,12 @@ mod tests {
 
     #[test]
     fn test_encode_code_dtype_u16_overflow() {
-        let mut pq = PQ::try_new(4, 70000, None).unwrap(); // ks exceeds u16::MAX
+        let mut pq = PQ::try_new(4, 70000, None).unwrap();
         pq.code_dtype = CodeType::U16;
-        let vecs = create_random_vectors(80000, 128);
-        pq.fit(&vecs, 10).unwrap();
+        pq.codewords = Some(Array3::zeros((pq.m, pq.ks as usize, 128 / pq.m)));
+        pq.dim = Some(128);
 
+        let vecs = create_random_vectors(1, 128);
         let result = pq.encode(&vecs);
         assert!(
             result.is_err(),
