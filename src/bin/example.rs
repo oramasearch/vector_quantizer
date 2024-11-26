@@ -31,7 +31,7 @@ fn main() -> Result<()> {
     let ks = 256; // Number of clusters per subspace
     let verbose = Some(true);
 
-    let mut pq = PQ::try_new(m, ks, verbose)?;
+    let mut pq = PQ::try_new(m, ks)?;
 
     // Step 3: Train the PQ Model
     let iterations = 20; // Number of iterations for k-means
