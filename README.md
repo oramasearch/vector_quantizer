@@ -1,4 +1,4 @@
-# Quantizer
+# Vector Quantizer
 
 [![Tests](https://github.com/oramasearch/quantizer/actions/workflows/ci.yml/badge.svg)](https://github.com/oramasearch/quantizer/actions/workflows/ci.yml)
 
