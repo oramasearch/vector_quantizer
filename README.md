@@ -77,7 +77,7 @@ See a more detailed example here: [/src/bin/example.rs](/src/bin/example.rs)
 
 ## Performance Benchmarks
 
-The PQ implementation was tested on datasets ranging from 1,000 to 100,000 vectors (128 dimensions each), using 16 subspaces and 256 centroids per subspace. Key findings:
+The PQ implementation was tested on datasets ranging from 1,000 to 1,000,000 vectors (128 dimensions each), using 16 subspaces and 256 centroids per subspace. Key findings:
 
 - **Memory Efficiency**: Consistently achieves 96.88% memory reduction across all dataset sizes
 - **Processing Speed**:
