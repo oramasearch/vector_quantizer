@@ -1,5 +1,7 @@
 # Quantizer
 
+[![Tests](https://github.com/oramasearch/quantizer/actions/workflows/ci.yml/badge.svg)](https://github.com/oramasearch/quantizer/actions/workflows/ci.yml)
+
 Simple vector quantization utilities and functions.
 
 ```shell
