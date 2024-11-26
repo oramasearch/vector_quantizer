@@ -1,9 +1,9 @@
 use crate::utils::{determine_code_type, euclidean_distance, kmeans2};
 use anyhow::Result;
+use log::{debug, error, info, trace, warn};
 use ndarray::parallel::prelude::*;
 use ndarray::{s, Array2, Array3, Axis};
 use rayon::prelude::*;
-use log::{debug, error, info, trace, warn};
 
 #[derive(Debug, Clone, Copy)]
 pub enum CodeType {
