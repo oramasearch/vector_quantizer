@@ -17,7 +17,7 @@ fn bench_pq_fit(c: &mut Criterion) {
 
         group.bench_function(format!("fit_{}x{}", n_vectors, n_dims), |b| {
             b.iter(|| {
-                let mut pq = PQ::try_new(8, 256, Some(false)).unwrap();
+                let mut pq = PQ::try_new(8, 256).unwrap();
                 pq.fit(black_box(&data), black_box(10)).unwrap();
             });
         });
@@ -34,7 +34,7 @@ fn bench_pq_encode(c: &mut Criterion) {
         let training_data = generate_test_data(n_vectors, n_dims);
         let test_data = generate_test_data(n_vectors / 2, n_dims);
 
-        let mut pq = PQ::try_new(8, 256, Some(false)).unwrap();
+        let mut pq = PQ::try_new(8, 256).unwrap();
         pq.fit(&training_data, 10).unwrap();
 
         group.bench_function(format!("encode_{}x{}", n_vectors, n_dims), |b| {
@@ -55,7 +55,7 @@ fn bench_pq_decode(c: &mut Criterion) {
         let training_data = generate_test_data(n_vectors, n_dims);
         let test_data = generate_test_data(n_vectors / 2, n_dims);
 
-        let mut pq = PQ::try_new(8, 256, Some(false)).unwrap();
+        let mut pq = PQ::try_new(8, 256).unwrap();
         pq.fit(&training_data, 10).unwrap();
         let codes = pq.encode(&test_data).unwrap();
 
@@ -77,7 +77,7 @@ fn bench_pq_compress(c: &mut Criterion) {
         let training_data = generate_test_data(n_vectors, n_dims);
         let test_data = generate_test_data(n_vectors / 2, n_dims);
 
-        let mut pq = PQ::try_new(8, 256, Some(false)).unwrap();
+        let mut pq = PQ::try_new(8, 256).unwrap();
         pq.fit(&training_data, 10).unwrap();
 
         group.bench_function(format!("compress_{}x{}", n_vectors, n_dims), |b| {

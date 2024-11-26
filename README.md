@@ -71,7 +71,6 @@ fn calc_mse(original: &Array2<f32>, quantized: &Array2<f32>) -> f32 {
         .mean()
         .unwrap()
 }
-
 ```
 
 See a more detailed example here: [/src/bin/example.rs](/src/bin/example.rs)
