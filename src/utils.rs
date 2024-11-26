@@ -1,5 +1,5 @@
+use crate::errors::PQError;
 use crate::pq::CodeType;
-use anyhow::Result;
 use ndarray::parallel::prelude::*;
 use ndarray::{Array1, Array2, ArrayView1, Axis};
 use ndarray_stats::QuantileExt;
@@ -14,23 +14,20 @@ pub fn kmeans2(
     k: u32,
     iter: usize,
     minit: &str,
-) -> Result<(Array2<f32>, Array1<usize>)> {
+) -> Result<(Array2<f32>, Array1<usize>), PQError> {
     let (n_samples, n_features) = data.dim();
     let k = k as usize;
 
     if n_samples == 0 || n_features == 0 {
-        anyhow::bail!("Data must have at least one sample and one feature");
+        return Err(PQError::DataOrFeatureMissing);
     }
 
     if k == 0 || k > n_samples {
-        anyhow::bail!(
-            "Number of clusters k must be between 1 and number of samples ({})",
-            n_samples
-        );
+        return Err(PQError::WrongNumberOfClusters { x: n_samples });
     }
 
     if data.iter().any(|x| !x.is_finite()) {
-        anyhow::bail!("Data contains non-finite values (NaN or Inf)");
+        return Err(PQError::NonFiniteValue);
     }
 
     let mut centroids = match minit {
@@ -46,7 +43,7 @@ pub fn kmeans2(
             }
             initial_centroids
         }
-        _ => anyhow::bail!("Unsupported initialization method"),
+        _ => return Err(PQError::InvalidInitMethod),
     };
 
     let mut labels = Array1::<usize>::zeros(n_samples);

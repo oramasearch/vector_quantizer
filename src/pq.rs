@@ -1,8 +1,10 @@
+use crate::errors::PQError;
 use crate::utils::{determine_code_type, euclidean_distance, kmeans2};
-use anyhow::Result;
-use log::{debug, error, info, trace, warn};
+use anyhow::Context;
+use log::{info, trace, warn};
 use ndarray::parallel::prelude::*;
 use ndarray::{s, Array2, Array3, Axis};
+use rand::TryRngCore;
 use rayon::prelude::*;
 
 #[derive(Debug, Clone, Copy)]
@@ -22,16 +24,13 @@ pub struct PQ {
 }
 
 impl PQ {
-    pub fn try_new(m: usize, ks: u32) -> Result<Self> {
+    pub fn try_new(m: usize, ks: u32) -> Result<Self, PQError> {
         if ks == 0 {
-            anyhow::bail!(
-                "cluster subspaces (ks) must be a u32 between 1 and 2**32 - 1. Got {}",
-                ks
-            )
+            return Err(PQError::InvalidKs(ks));
         }
 
         if m == 0 {
-            anyhow::bail!("Number of subspaces (m) must be greater than 0. Got {}", m);
+            return Err(PQError::InvalidSubspaces(m));
         }
 
         Ok(Self {
@@ -44,33 +43,28 @@ impl PQ {
         })
     }
 
-    pub fn fit(&mut self, vecs: &Array2<f32>, iterations: usize) -> Result<&mut Self> {
+    pub fn fit(&mut self, vecs: &Array2<f32>, iterations: usize) -> Result<&mut Self, PQError> {
         let (n_vectors, n_dims) = vecs.dim();
 
         if self.ks > n_vectors as u32 {
-            anyhow::bail!(
-                "The number of training vectors ({}) should be more than ks ({})",
+            return Err(PQError::InsufficientTrainingVectors {
                 n_vectors,
-                self.ks
-            );
+                ks: self.ks,
+            });
         }
 
         if n_dims == 0 {
-            anyhow::bail!("Input vectors must have at least one dimension");
+            return Err(PQError::EmptyInputVectors);
         }
 
         if self.m > n_dims {
-            anyhow::bail!(
-                "Number of subspaces (m) cannot be greater than vector dimensions ({} > {})",
-                self.m,
-                n_dims
-            );
+            return Err(PQError::SubspacesExceedDimensions { m: self.m, n_dims });
         }
 
         self.dim = Some(n_dims as usize);
 
-        let reminder: usize = n_dims % self.m;
-        let quotient: usize = n_dims / self.m;
+        let reminder = n_dims % self.m;
+        let quotient = n_dims / self.m;
 
         let dims_width: Vec<usize> = (0..self.m)
             .map(|i| if i < reminder { quotient + 1 } else { quotient })
@@ -93,59 +87,38 @@ impl PQ {
         let trained_codewords: Vec<(usize, Array2<f32>)> = (0..self.m)
             .into_par_iter()
             .map(|m| {
-                info!(
-                    "Training the subspace: {} / {}, {} -> {}",
-                    m,
-                    self.m,
-                    self.ds.as_ref().unwrap()[m],
-                    self.ds.as_ref().unwrap()[m + 1]
-                );
-
-                let ds_ref = self.ds.as_ref().unwrap();
-
+                let ds_ref = self.ds.as_ref().ok_or(PQError::ModelNotTrained)?;
                 let vecs_sub = vecs.slice(s![.., ds_ref[m]..ds_ref[m + 1]]);
-
                 let (centroids, _) = kmeans2(&vecs_sub.to_owned(), self.ks, iterations, "points")?;
-
                 Ok((m, centroids))
             })
-            .collect::<Result<Vec<(usize, Array2<f32>)>>>()?;
+            .collect::<Result<Vec<(usize, Array2<f32>)>, PQError>>()?;
 
         for (m, centroids) in trained_codewords {
             let ds_ref = self.ds.as_ref().unwrap();
             let subspace_width = ds_ref[m + 1] - ds_ref[m];
-
             codewords
                 .slice_mut(s![m, .., ..subspace_width])
                 .assign(&centroids);
         }
 
         self.codewords = Some(codewords);
+
+        info!("Fit completed successfully.");
         Ok(self)
     }
 
-    pub fn encode(&self, vecs: &Array2<f32>) -> Result<Array2<u32>> {
-        let (n_vectors, n_dims) = vecs.dim();
-
-        let training_dim = self.dim.ok_or_else(|| {
-            anyhow::anyhow!("Model not trained. Call fit() before calling encode()")
-        })?;
-
-        if n_dims != training_dim {
-            anyhow::bail!("Input vectors dimensions should match training dimensions");
+    pub fn encode(&self, vecs: &Array2<f32>) -> Result<Array2<u32>, PQError> {
+        let dim = self.dim.ok_or(PQError::ModelNotTrained)?;
+        if vecs.dim().1 != dim {
+            return Err(PQError::TrainingDimensionsDoesntMatchInputDimensions);
         }
 
+        let ds = self.ds.as_ref().ok_or(PQError::ModelNotTrained)?;
+        let codewords = self.codewords.as_ref().ok_or(PQError::ModelNotTrained)?;
+
+        let (n_vectors, _) = vecs.dim();
         let mut codes = Array2::<u32>::zeros((n_vectors, self.m));
-
-        let codewords = self
-            .codewords
-            .as_ref()
-            .ok_or_else(|| anyhow::anyhow!("Model not trained. Call fit() first"))?;
-
-        let ds = self
-            .ds
-            .as_ref()
-            .ok_or_else(|| anyhow::anyhow!("Model not trained. Call fit() first"))?;
 
         codes
             .outer_iter_mut()
@@ -175,12 +148,12 @@ impl PQ {
         match self.code_dtype {
             CodeType::U8 => {
                 if codes.iter().any(|&x| x > u8::MAX as u32) {
-                    anyhow::bail!("Encoded values exceed U8 range");
+                    return Err(PQError::EncodedValuesExceedU8Range);
                 }
             }
             CodeType::U16 => {
                 if codes.iter().any(|&x| x > u16::MAX as u32) {
-                    anyhow::bail!("Encoded values exceed U16 range");
+                    return Err(PQError::EncodedValuesExceedU16Range);
                 }
             }
             CodeType::U32 => {}
@@ -189,39 +162,30 @@ impl PQ {
         Ok(codes)
     }
 
-    pub fn decode(&self, codes: &Array2<u32>) -> Result<Array2<f32>> {
+    pub fn decode(&self, codes: &Array2<u32>) -> Result<Array2<f32>, PQError> {
         let (n_vectors, m) = codes.dim();
 
         if m != self.m {
-            anyhow::bail!("Code dimensions don't match training dimensions");
+            return Err(PQError::TrainingDimensionsDoesntMatchInputDimensions);
         }
 
-        let dim = self
-            .dim
-            .ok_or_else(|| anyhow::anyhow!("Model not trained"))?;
-        let ds = self
-            .ds
-            .as_ref()
-            .ok_or_else(|| anyhow::anyhow!("Model not trained"))?;
-        let codewords = self
-            .codewords
-            .as_ref()
-            .ok_or_else(|| anyhow::anyhow!("Model not trained"))?;
+        let dim = self.dim.ok_or(PQError::ModelNotTrained)?;
+        let ds = self.ds.as_ref().ok_or(PQError::ModelNotTrained)?;
+        let codewords = self.codewords.as_ref().ok_or(PQError::ModelNotTrained)?;
 
         let mut vecs = Array2::<f32>::zeros((n_vectors, dim));
 
         vecs.outer_iter_mut()
             .into_par_iter()
             .zip(codes.outer_iter())
-            .try_for_each(|(mut vec_row, code_row)| -> Result<(), anyhow::Error> {
+            .try_for_each(|(mut vec_row, code_row)| -> Result<(), PQError> {
                 for m in 0..self.m {
                     let code_idx = code_row[m] as usize;
                     if code_idx >= self.ks as usize {
-                        return Err(anyhow::anyhow!(
-                            "Code value {} exceeds number of clusters {}",
-                            code_idx,
-                            self.ks
-                        ));
+                        return Err(PQError::NClusterExceeded {
+                            x: code_idx,
+                            y: self.ks,
+                        });
                     }
                     let subspace_width = ds[m + 1] - ds[m];
                     let codeword = codewords.slice(s![m, code_idx, ..subspace_width]);
@@ -234,7 +198,7 @@ impl PQ {
         Ok(vecs)
     }
 
-    pub fn compress(&self, vecs: &Array2<f32>) -> Result<Array2<f32>> {
+    pub fn compress(&self, vecs: &Array2<f32>) -> Result<Array2<f32>, PQError> {
         let codes = self.encode(vecs)?;
         self.decode(&codes)
     }
