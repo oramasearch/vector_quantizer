@@ -121,7 +121,11 @@ impl PQ {
     pub fn encode(&self, vecs: &Array2<f32>) -> Result<Array2<u32>> {
         let (n_vectors, n_dims) = vecs.dim();
 
-        if n_dims != self.dim.unwrap() {
+        let training_dim = self.dim.ok_or_else(|| {
+            anyhow::anyhow!("Model not trained. Call fit() before calling encode()")
+        })?;
+
+        if n_dims != training_dim {
             anyhow::bail!("Input vectors dimensions should match training dimensions");
         }
 
@@ -388,7 +392,7 @@ mod tests {
     fn test_encode_code_dtype_u16_overflow() {
         let mut pq = PQ::try_new(4, 70000, None).unwrap(); // ks exceeds u16::MAX
         pq.code_dtype = CodeType::U16;
-        let vecs = create_dummy_vectors(1000, 128);
+        let vecs = create_random_vectors(80000, 128);
         pq.fit(&vecs, 10).unwrap();
 
         let result = pq.encode(&vecs);
