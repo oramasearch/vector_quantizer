@@ -26,7 +26,7 @@ fn main() -> Result<()> {
     // Configure PQ parameters
     let m = 8; // Number of subspaces (controls compression ratio)
     let ks = 256; // Number of centroids per subspace (usually 256 for uint8)
-    let mut pq = PQ::try_new(m, ks, Some(true))?;
+    let mut pq = PQ::try_new(m, ks)?;
 
     // Train the quantizer on the data
     println!("Training PQ model...");
