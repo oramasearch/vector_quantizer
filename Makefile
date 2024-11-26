@@ -1,6 +1,6 @@
 .PHONY: quality_check
 
-RUST_LOG := info
+RUST_LOG := RUST_LOG=info
 PLOTS_DIR := plots
 BENCHMARK_RESULTS := benchmark_results.png
 

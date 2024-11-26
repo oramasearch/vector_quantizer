@@ -75,7 +75,25 @@ fn calc_mse(original: &Array2<f32>, quantized: &Array2<f32>) -> f32 {
 
 See a more detailed example here: [/src/bin/example.rs](/src/bin/example.rs)
 
-# Acknowledgements
+## Performance Benchmarks
+
+The PQ implementation was tested on datasets ranging from 1,000 to 100,000 vectors (128 dimensions each), using 16 subspaces and 256 centroids per subspace. Key findings:
+
+- **Memory Efficiency**: Consistently achieves 96.88% memory reduction across all dataset sizes
+- **Processing Speed**:
+    - Fitting: Scales linearly, processing 100k vectors in ~3.7s
+    - Compression: Very efficient, handling ~278k vectors per second
+- **Quality Metrics**:
+    - Reconstruction Error: Remains low (0.013-0.021) across all dataset sizes
+    - Recall@10: Ranges from 0.40 (small datasets) to 0.19 (large datasets)
+
+The benchmark was tested on a 2022 MacBook Pro, M2 Pro, 16GB RAM. Run your own tests by running:
+
+```sh
+make quality_check
+```
+
+## Acknowledgements
 The code in this repository is mostly adapted from [https://github.com/xinyandai/product-quantization](https://github.com/xinyandai/product-quantization), a great Python lib for vector quantization.
 
 The original code and the one written in this repository is derived from "Norm-Explicit Quantization: Improving Vector Quantization for Maximum Inner Product Search" by Dai, Xinyan and Yan, Xiao and Ng, Kelvin KW and Liu, Jie and Cheng, James: [https://arxiv.org/abs/1911.04654](https://arxiv.org/abs/1911.04654)
