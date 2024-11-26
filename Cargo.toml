@@ -19,6 +19,7 @@ ndarray-rand = "0.15.0"
 rand_distr = "0.4.3"
 rayon = "1.10.0"
 log = "0.4.22"
+thiserror = "2.0.3"
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }
