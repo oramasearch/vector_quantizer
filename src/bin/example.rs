@@ -1,8 +1,8 @@
 use anyhow::{anyhow, Result};
 use ndarray::{Array2, Axis};
 use ndarray_rand::RandomExt;
-use quantizer::pq::PQ;
 use rand_distr::StandardNormal;
+use vector_quantizer::pq::PQ;
 
 fn create_random_vectors(n: usize, dim: usize) -> Array2<f32> {
     Array2::random((n, dim), StandardNormal)

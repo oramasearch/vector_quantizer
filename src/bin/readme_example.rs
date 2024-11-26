@@ -1,8 +1,8 @@
 use anyhow::Result;
 use ndarray::Array2;
 use ndarray_rand::RandomExt;
-use quantizer::pq::PQ;
 use rand_distr::StandardNormal;
+use vector_quantizer::pq::PQ;
 
 fn main() -> Result<()> {
     // Generate sample vectors to quantize
