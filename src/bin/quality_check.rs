@@ -142,7 +142,7 @@ fn calculate_recall(original: &Array2<f32>, compressed: &Array2<f32>, k: usize) 
 fn main() -> Result<()> {
     env_logger::init();
 
-    let sample_sizes = vec![1000, 5000, 10000, 50000, 100000];
+    let sample_sizes = vec![1_000, 5_000, 10_000, 50_000, 100_000, 1_000_000];
     let n_dims = 128;
     let m = 16;
     let ks = 256;

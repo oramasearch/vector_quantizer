@@ -81,11 +81,11 @@ The PQ implementation was tested on datasets ranging from 1,000 to 100,000 vecto
 
 - **Memory Efficiency**: Consistently achieves 96.88% memory reduction across all dataset sizes
 - **Processing Speed**:
-    - Fitting: Scales linearly, processing 100k vectors in ~3.7s
-    - Compression: Very efficient, handling ~278k vectors per second
+    - Fitting: Scales linearly, processing 100k vectors in ~3.7s (1M vectors in ~38s)
+    - Compression: Very efficient, handling ~278k vectors per second (1M vectors in 3.57s)
 - **Quality Metrics**:
     - Reconstruction Error: Remains low (0.013-0.021) across all dataset sizes
-    - Recall@10: Ranges from 0.40 (small datasets) to 0.19 (large datasets)
+    - Recall@10: Ranges from 0.40 (small datasets) to 0.18 (large datasets)
 
 The benchmark was tested on a 2022 MacBook Pro, M2 Pro, 16GB RAM. Run your own tests by running:
 
