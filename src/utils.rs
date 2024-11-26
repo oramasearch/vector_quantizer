@@ -101,9 +101,9 @@ pub fn kmeans2(
 
 fn check_convergence(new_centroids: &Array2<f32>, old_centroids: &Array2<f32>) -> bool {
     let diff = new_centroids - old_centroids;
-    let binding = diff.mapv(|x| x.abs()).sum_axis(Axis(1));
+    let binding = diff.mapv(|x| x.abs());
     let max_change = binding.max().unwrap();
-    *max_change < 1e-4
+    *max_change <= 1e-4
 }
 
 pub fn euclidean_distance(a: &ArrayView1<f32>, b: &ArrayView1<f32>) -> f32 {
@@ -362,14 +362,18 @@ mod tests {
     #[test]
     fn test_check_convergence_function() {
         let centroids_old = create_random_vectors(3, 10);
+
+        // Case 1: Identical centroids
         let centroids_new = centroids_old.clone();
         let has_converged = check_convergence(&centroids_new, &centroids_old);
         assert!(has_converged, "Should converge with identical centroids");
 
+        // Case 2: Negligible changes
         let centroids_new = &centroids_old + 1e-5;
         let has_converged = check_convergence(&centroids_new, &centroids_old);
         assert!(has_converged, "Should converge with negligible changes");
 
+        // Case 3: Significant changes
         let centroids_new = &centroids_old + 1e-3;
         let has_converged = check_convergence(&centroids_new, &centroids_old);
         assert!(
