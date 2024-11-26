@@ -796,6 +796,7 @@ dependencies = [
  "rand 0.9.0-alpha.2",
  "rand_distr",
  "rayon",
+ "serde",
  "thiserror",
 ]
 

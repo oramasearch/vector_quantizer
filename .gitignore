@@ -1,2 +1,4 @@
 .idea
 target
+benchmark_results.csv
+benchmark_results.png
