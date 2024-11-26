@@ -9,6 +9,99 @@ use rand::Rng;
 use std::f32;
 use std::ops::AddAssign;
 
+#[cfg(feature = "gpu")]
+use arrayfire::{self, dim4, imin, max_all, tile, Array as AfArray, Seq};
+
+#[cfg(feature = "gpu")]
+pub fn kmeans2_gpu(
+    data: &Array2<f32>,
+    k: u32,
+    iterations: usize,
+) -> Result<(Array2<f32>, Array1<usize>), PQError> {
+    let (n_samples, n_features) = data.dim();
+    let data_gpu = AfArray::new(
+        data.as_slice().unwrap(),
+        dim4!(n_samples as u64, n_features as u64, 1, 1),
+    );
+
+    let mut centroids_gpu = arrayfire::randn(dim4!(k as u64, n_features as u64, 1, 1));
+    let mut labels_gpu = AfArray::new_empty(dim4!(n_samples as u64, 1, 1, 1));
+
+    for _ in 0..iterations {
+        let tiled_data = tile(&data_gpu, dim4!(1, k as u64, 1, 1));
+        let tiled_centroids = tile(&centroids_gpu, dim4!(n_samples as u64, 1, 1, 1));
+        let diff = &tiled_data - &tiled_centroids;
+        let squared = &diff * &diff;
+        let distances = arrayfire::sum(&squared, 1);
+
+        let (_, indices) = imin(&distances, 1);
+        labels_gpu = indices.cast::<f32>();
+
+        let new_centroids = compute_new_centroids(&data_gpu, &labels_gpu, k);
+
+        if has_converged_gpu(&centroids_gpu, &new_centroids) {
+            centroids_gpu = new_centroids;
+            break;
+        }
+
+        centroids_gpu = new_centroids;
+    }
+
+    let mut centroids_host = vec![0.0f32; (k as usize) * n_features];
+    centroids_gpu.host(&mut centroids_host);
+    let centroids = Array2::from_shape_vec((k as usize, n_features), centroids_host)
+        .map_err(|e| PQError::ShapeError(format!("{:?}", e)))?;
+
+    let mut labels_host = vec![0u32; n_samples];
+    labels_gpu.cast::<u32>().host(&mut labels_host);
+    let labels = Array1::from_iter(labels_host.into_iter().map(|x| x as usize));
+
+    Ok((centroids, labels))
+}
+
+#[cfg(feature = "gpu")]
+fn compute_new_centroids(
+    data_gpu: &AfArray<f32>,
+    labels_gpu: &AfArray<f32>,
+    k: u32,
+) -> AfArray<f32> {
+    let n_features = data_gpu.dims()[1];
+    let mut new_centroids = arrayfire::constant(0.0f32, dim4!(k as u64, n_features, 1, 1));
+    let mut counts = arrayfire::constant(0.0f32, dim4!(k as u64, 1, 1, 1));
+
+    for cluster in 0..k {
+        let cluster_mask = arrayfire::eq(
+            labels_gpu,
+            &arrayfire::constant(cluster as f32, labels_gpu.dims()),
+            false,
+        );
+        let cluster_points = arrayfire::select(
+            data_gpu,
+            &cluster_mask,
+            &arrayfire::constant(0.0f32, data_gpu.dims()),
+        );
+
+        let sum = arrayfire::sum(&cluster_points, 0);
+        let count = arrayfire::sum(&cluster_mask.cast::<f32>(), 0);
+
+        let mut new_centroids_ref = &mut new_centroids;
+        let seq = Seq::new(cluster as i32, cluster as i32, 1);
+        arrayfire::assign_seq(&mut new_centroids_ref, &[seq], &sum);
+
+        let mut counts_ref = &mut counts;
+        arrayfire::assign_seq(&mut counts_ref, &[seq], &count);
+    }
+
+    &new_centroids / &counts
+}
+
+#[cfg(feature = "gpu")]
+fn has_converged_gpu(old: &AfArray<f32>, new: &AfArray<f32>) -> bool {
+    let diff = arrayfire::abs(&(old - new));
+    let max_diff = max_all(&diff).0;
+    max_diff <= 1e-4
+}
+
 pub fn kmeans2(
     data: &Array2<f32>,
     k: u32,

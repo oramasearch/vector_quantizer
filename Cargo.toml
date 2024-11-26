@@ -10,18 +10,29 @@ readme = "README.md"
 keywords = ["product_quantization", "vector_quantization", "embeddings", "quantization"]
 categories = ["algorithms"]
 
+[features]
+gpu = ["arrayfire"]
+default = []
+
 [dependencies]
 anyhow = "1.0.93"
-ndarray = { version = "0.16.1", features = ["rayon"] }
+ndarray = { version = "0.16.1", features = ["rayon", "blas"] }
 ndarray-stats = "0.6.0"
 rand = "0.9.0-alpha.2"
 ndarray-rand = "0.15.0"
+ndarray-parallel = "0.9.1"
 rand_distr = "0.4.3"
 rayon = "1.10.0"
 log = "0.4.22"
 thiserror = "2.0.3"
 env_logger = "0.11.5"
 serde = { version = "1.0.215", features = ["derive"] }
+wgpu = { version = "23.0.1", optional = true }
+
+[dependencies.arrayfire]
+optional = true
+version = "3.8.0"
+features = ["default", "blas"]
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }

@@ -51,4 +51,7 @@ pub enum PQError {
 
     #[error("Unsupported initialization method")]
     InvalidInitMethod,
+
+    #[error("Shape error")]
+    ShapeError(String),
 }

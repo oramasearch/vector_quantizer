@@ -5,6 +5,11 @@ use log::{info, trace, warn};
 use ndarray::parallel::prelude::*;
 use ndarray::{s, Array2, Array3, Axis};
 use rand::TryRngCore;
+
+#[cfg(feature = "gpu")]
+use crate::utils::kmeans2_gpu;
+
+#[cfg(not(feature = "gpu"))]
 use rayon::prelude::*;
 
 #[derive(Debug, Clone, Copy)]
@@ -84,7 +89,18 @@ impl PQ {
         let max_width = dims_width.iter().max().unwrap();
         let mut codewords = Array3::<f32>::zeros((self.m, self.ks as usize, *max_width));
 
-        let trained_codewords: Vec<(usize, Array2<f32>)> = (0..self.m)
+        #[cfg(feature = "gpu")]
+        let trained_codewords = (0..self.m)
+            .map(|m| {
+                let ds_ref = self.ds.as_ref().ok_or(PQError::ModelNotTrained)?;
+                let vecs_sub = vecs.slice(s![.., ds_ref[m]..ds_ref[m + 1]]);
+                let (centroids, _) = kmeans2_gpu(&vecs_sub.to_owned(), self.ks, iterations)?;
+                Ok((m, centroids))
+            })
+            .collect::<Result<Vec<(usize, Array2<f32>)>, PQError>>()?;
+
+        #[cfg(not(feature = "gpu"))]
+        let trained_codewords = (0..self.m)
             .into_par_iter()
             .map(|m| {
                 let ds_ref = self.ds.as_ref().ok_or(PQError::ModelNotTrained)?;
@@ -120,6 +136,7 @@ impl PQ {
         let (n_vectors, _) = vecs.dim();
         let mut codes = Array2::<u32>::zeros((n_vectors, self.m));
 
+        #[cfg(not(feature = "gpu"))]
         codes
             .outer_iter_mut()
             .into_par_iter()
