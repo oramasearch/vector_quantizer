@@ -1,6 +1,8 @@
 use crate::utils::{determine_code_type, euclidean_distance, kmeans2};
 use anyhow::Result;
-use ndarray::{s, Array2, Array3};
+use ndarray::parallel::prelude::*;
+use ndarray::{s, Array2, Array3, Axis};
+use rayon::prelude::*;
 
 #[derive(Debug, Clone, Copy)]
 pub enum CodeType {
@@ -89,25 +91,32 @@ impl PQ {
         let max_width = dims_width.iter().max().unwrap();
         let mut codewords = Array3::<f32>::zeros((self.m, self.ks as usize, *max_width));
 
-        for m in 0..self.m {
-            if self.verbose {
-                println!(
-                    "#    Training the subspace: {} / {}, {} -> {}",
-                    m,
-                    self.m,
-                    self.ds.as_ref().unwrap()[m],
-                    self.ds.as_ref().unwrap()[m + 1]
-                );
-            }
+        let trained_codewords: Vec<(usize, Array2<f32>)> = (0..self.m)
+            .into_par_iter()
+            .map(|m| {
+                if self.verbose {
+                    println!(
+                        "#    Training the subspace: {} / {}, {} -> {}",
+                        m,
+                        self.m,
+                        self.ds.as_ref().unwrap()[m],
+                        self.ds.as_ref().unwrap()[m + 1]
+                    );
+                }
 
-            let vecs_sub = vecs.slice(s![
-                ..,
-                self.ds.as_ref().unwrap()[m]..self.ds.as_ref().unwrap()[m + 1]
-            ]);
+                let ds_ref = self.ds.as_ref().unwrap();
 
-            let (centroids, _) = kmeans2(&vecs_sub.to_owned(), self.ks, iterations, "points")?;
+                let vecs_sub = vecs.slice(s![.., ds_ref[m]..ds_ref[m + 1]]);
 
-            let subspace_width = self.ds.as_ref().unwrap()[m + 1] - self.ds.as_ref().unwrap()[m];
+                let (centroids, _) = kmeans2(&vecs_sub.to_owned(), self.ks, iterations, "points")?;
+
+                Ok((m, centroids))
+            })
+            .collect::<Result<Vec<(usize, Array2<f32>)>>>()?;
+
+        for (m, centroids) in trained_codewords {
+            let ds_ref = self.ds.as_ref().unwrap();
+            let subspace_width = ds_ref[m + 1] - ds_ref[m];
 
             codewords
                 .slice_mut(s![m, .., ..subspace_width])
@@ -141,41 +150,43 @@ impl PQ {
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Model not trained. Call fit() first"))?;
 
-        for m in 0..self.m {
-            let vecs_sub = vecs.slice(s![.., ds[m]..ds[m + 1]]);
-            let subspace_width = ds[m + 1] - ds[m];
-            let codewords_sub = codewords.slice(s![m, .., ..subspace_width]);
+        codes
+            .outer_iter_mut()
+            .into_par_iter()
+            .zip(vecs.outer_iter())
+            .for_each(|(mut code_row, vec)| {
+                for m in 0..self.m {
+                    let subspace = vec.slice(s![ds[m]..ds[m + 1]]);
+                    let subspace_width = ds[m + 1] - ds[m];
+                    let codewords_sub = codewords.slice(s![m, .., ..subspace_width]);
 
-            for (i, vec) in vecs_sub.rows().into_iter().enumerate() {
-                let mut min_dist = f32::INFINITY;
-                let mut min_idx = 0;
+                    let mut min_dist = f32::INFINITY;
+                    let mut min_idx = 0;
 
-                for (j, codeword) in codewords_sub.rows().into_iter().enumerate() {
-                    let dist = euclidean_distance(&vec, &codeword);
-                    if dist < min_dist {
-                        min_dist = dist;
-                        min_idx = j;
+                    for (j, codeword) in codewords_sub.axis_iter(Axis(0)).enumerate() {
+                        let dist = euclidean_distance(&subspace, &codeword);
+                        if dist < min_dist {
+                            min_dist = dist;
+                            min_idx = j;
+                        }
                     }
+
+                    code_row[m] = min_idx as u32;
                 }
+            });
 
-                codes[[i, m]] = min_idx as u32;
-            }
-        }
-
-        let codes = match self.code_dtype {
+        match self.code_dtype {
             CodeType::U8 => {
                 if codes.iter().any(|&x| x > u8::MAX as u32) {
                     anyhow::bail!("Encoded values exceed U8 range");
                 }
-                codes
             }
             CodeType::U16 => {
                 if codes.iter().any(|&x| x > u16::MAX as u32) {
                     anyhow::bail!("Encoded values exceed U16 range");
                 }
-                codes
             }
-            CodeType::U32 => codes,
+            CodeType::U32 => {}
         };
 
         Ok(codes)
@@ -202,23 +213,26 @@ impl PQ {
 
         let mut vecs = Array2::<f32>::zeros((n_vectors, dim));
 
-        for m in 0..self.m {
-            let subspace_width = ds[m + 1] - ds[m];
+        vecs.outer_iter_mut()
+            .into_par_iter()
+            .zip(codes.outer_iter())
+            .try_for_each(|(mut vec_row, code_row)| -> Result<(), anyhow::Error> {
+                for m in 0..self.m {
+                    let code_idx = code_row[m] as usize;
+                    if code_idx >= self.ks as usize {
+                        return Err(anyhow::anyhow!(
+                            "Code value {} exceeds number of clusters {}",
+                            code_idx,
+                            self.ks
+                        ));
+                    }
+                    let subspace_width = ds[m + 1] - ds[m];
+                    let codeword = codewords.slice(s![m, code_idx, ..subspace_width]);
 
-            for (i, code) in codes.column(m).iter().enumerate() {
-                let code_idx = *code as usize;
-                if code_idx >= self.ks as usize {
-                    anyhow::bail!(
-                        "Code value {} exceeds number of clusters {}",
-                        code_idx,
-                        self.ks
-                    );
+                    vec_row.slice_mut(s![ds[m]..ds[m + 1]]).assign(&codeword);
                 }
-
-                vecs.slice_mut(s![i, ds[m]..ds[m + 1]])
-                    .assign(&codewords.slice(s![m, code_idx, ..subspace_width]));
-            }
-        }
+                Ok(())
+            })?;
 
         Ok(vecs)
     }
@@ -233,7 +247,6 @@ impl PQ {
 mod tests {
     use super::*;
     use crate::utils::create_random_vectors;
-    use anyhow::Result;
     use ndarray::Array2;
 
     fn create_dummy_vectors(num_vectors: usize, dimension: usize) -> Array2<f32> {

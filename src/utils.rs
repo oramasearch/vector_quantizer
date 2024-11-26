@@ -1,6 +1,7 @@
 use crate::pq::CodeType;
 use anyhow::Result;
-use ndarray::{s, Array1, Array2, ArrayView1, Axis};
+use ndarray::parallel::prelude::*;
+use ndarray::{Array1, Array2, ArrayView1, Axis};
 use ndarray_stats::QuantileExt;
 use rand::distr::{Distribution, Uniform};
 use rand::seq::SliceRandom;
@@ -48,7 +49,7 @@ pub fn kmeans2(
         _ => anyhow::bail!("Unsupported initialization method"),
     };
 
-    let mut labels = Array1::zeros(n_samples);
+    let mut labels = Array1::<usize>::zeros(n_samples);
     let mut old_centroids;
     let mut has_converged = false;
 
@@ -59,39 +60,48 @@ pub fn kmeans2(
 
         old_centroids = centroids.clone();
 
-        for (i, sample) in data.rows().into_iter().enumerate() {
-            let mut min_dist = f32::INFINITY;
-            let mut min_label = 0;
+        let labels_vec: Vec<usize> = data
+            .outer_iter()
+            .into_par_iter()
+            .map(|sample| {
+                let mut min_dist = f32::INFINITY;
+                let mut min_label = 0;
 
-            for (j, centroid) in centroids.rows().into_iter().enumerate() {
-                let dist = euclidean_distance(&sample, &centroid);
-                if dist < min_dist {
-                    min_dist = dist;
-                    min_label = j;
+                for (j, centroid) in centroids.outer_iter().enumerate() {
+                    let dist = euclidean_distance(&sample, &centroid);
+                    if dist < min_dist {
+                        min_dist = dist;
+                        min_label = j;
+                    }
                 }
-            }
-            labels[i] = min_label;
-        }
+                min_label
+            })
+            .collect();
 
-        let mut new_centroids = Array2::zeros((k, n_features));
+        labels = Array1::from(labels_vec);
+
         let mut counts = vec![0usize; k];
+        let mut sums = vec![Array1::<f32>::zeros(n_features); k];
 
-        for (i, sample) in data.rows().into_iter().enumerate() {
-            let label = labels[i];
-            new_centroids.row_mut(label).add_assign(&sample);
-            counts[label] += 1;
-        }
+        data.outer_iter()
+            .zip(labels.iter())
+            .for_each(|(sample, &label)| {
+                counts[label] += 1;
+                sums[label].add_assign(&sample);
+            });
 
-        for (i, count) in counts.iter().enumerate() {
-            if *count > 0 {
-                new_centroids.row_mut(i).mapv_inplace(|x| x / *count as f32);
-            } else {
-                let random_idx = rand::thread_rng().gen_range(0..n_samples);
-                new_centroids.row_mut(i).assign(&data.row(random_idx));
-            }
-        }
-
-        centroids = new_centroids;
+        centroids
+            .outer_iter_mut()
+            .into_par_iter()
+            .enumerate()
+            .for_each(|(i, mut centroid_row)| {
+                if counts[i] > 0 {
+                    centroid_row.assign(&(sums[i].clone() / counts[i] as f32));
+                } else {
+                    let random_idx = rand::thread_rng().gen_range(0..n_samples);
+                    centroid_row.assign(&data.row(random_idx));
+                }
+            });
 
         has_converged = check_convergence(&centroids, &old_centroids);
     }
