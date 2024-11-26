@@ -22,7 +22,7 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           toolchain: ${{ matrix.rust }}
-          components: [rustfmt, clippy]
+          components: rustfmt
           profile: minimal
 
       - name: Cache cargo registry
