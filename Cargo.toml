@@ -2,6 +2,13 @@
 name = "vector_quantizer"
 version = "0.0.1"
 edition = "2021"
+authors = ["Michele Riva <michele@orama.com>"]
+description = "Simple vector quantization utilities and functions."
+license = "GPL-3.0-only"
+repository = "https://github.com/oramasearch/vector_quantizer"
+readme = "README.md"
+keywords = ["product_quantization", "vector_quantization", "embeddings", "quantization"]
+categories = ["algorithms"]
 
 [dependencies]
 anyhow = "1.0.93"
