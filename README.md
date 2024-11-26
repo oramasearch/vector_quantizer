@@ -5,7 +5,7 @@
 Simple vector quantization utilities and functions.
 
 ```shell
-cargo add quantizer
+cargo add vector_quantizer
 ```
 
 Example usage:
@@ -14,7 +14,7 @@ Example usage:
 use anyhow::Result;
 use ndarray::Array2;
 use ndarray_rand::RandomExt;
-use quantizer::pq::PQ;
+use vector_quantizer::pq::PQ;
 use rand_distr::StandardNormal;
 
 fn main() -> Result<()> {

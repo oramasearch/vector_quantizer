@@ -208,18 +208,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "quantizer"
-version = "0.0.1"
-dependencies = [
- "anyhow",
- "ndarray",
- "ndarray-rand",
- "ndarray-stats",
- "rand 0.9.0-alpha.2",
- "rand_distr",
-]
-
-[[package]]
 name = "quote"
 version = "1.0.37"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -321,6 +309,18 @@ name = "unicode-ident"
 version = "1.0.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "adb9e6ca4f869e1180728b7950e35922a7fc6397f7b641499e8f3ef06e50dc83"
+
+[[package]]
+name = "vector_quantizer"
+version = "0.0.1"
+dependencies = [
+ "anyhow",
+ "ndarray",
+ "ndarray-rand",
+ "ndarray-stats",
+ "rand 0.9.0-alpha.2",
+ "rand_distr",
+]
 
 [[package]]
 name = "wasi"
