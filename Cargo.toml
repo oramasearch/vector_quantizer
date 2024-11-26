@@ -18,6 +18,13 @@ rand = "0.9.0-alpha.2"
 ndarray-rand = "0.15.0"
 rand_distr = "0.4.3"
 
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[[bench]]
+name = "pq_bench"
+harness = false
+
 [[bin]]
 name = "example"
 path = "src/bin/example.rs"
