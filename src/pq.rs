@@ -1,11 +1,8 @@
 use crate::errors::PQError;
 use crate::utils::{determine_code_type, euclidean_distance, kmeans2};
-use anyhow::Context;
 use log::{info, trace, warn};
 use ndarray::parallel::prelude::*;
 use ndarray::{s, Array2, Array3, Axis};
-use rand::TryRngCore;
-use rayon::prelude::*;
 
 #[derive(Debug, Clone, Copy)]
 pub enum CodeType {

@@ -1,7 +1,7 @@
 use crate::errors::PQError;
 use crate::pq::CodeType;
 use ndarray::parallel::prelude::*;
-use ndarray::{Array1, Array2, ArrayView1, Axis};
+use ndarray::{Array1, Array2, ArrayView1};
 use ndarray_stats::QuantileExt;
 use rand::distr::{Distribution, Uniform};
 use rand::seq::SliceRandom;
@@ -143,7 +143,7 @@ pub fn create_random_vectors(num_vectors: usize, dimension: usize) -> Array2<f32
 mod tests {
     use super::*;
     use ndarray::Array2;
-    use ndarray::{concatenate, s};
+    use ndarray::{concatenate, s, Axis};
     use rand::Rng;
 
     fn create_random_vectors(num_vectors: usize, dimension: usize) -> Array2<f32> {
