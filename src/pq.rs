@@ -4,7 +4,7 @@ use log::{info, trace, warn};
 use ndarray::parallel::prelude::*;
 use ndarray::{s, Array2, Array3, Axis};
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum CodeType {
     U8,
     U16,
@@ -12,12 +12,12 @@ pub enum CodeType {
 }
 
 pub struct PQ {
-    m: usize,
-    ks: u32,
-    code_dtype: CodeType,
-    codewords: Option<Array3<f32>>,
-    ds: Option<Vec<usize>>,
-    dim: Option<usize>,
+    pub m: usize,
+    pub code_dtype: CodeType,
+    pub ks: u32,
+    pub codewords: Option<Array3<f32>>,
+    pub ds: Option<Vec<usize>>,
+    pub dim: Option<usize>,
 }
 
 impl PQ {

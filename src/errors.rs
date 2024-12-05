@@ -3,6 +3,24 @@ use ndarray::Ix;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
+pub enum PQResidualError {
+    #[error("Must use at least one product quantizer")]
+    MissingProductQuantizer,
+
+    #[error("Missing dataset name")]
+    MissingDatasetName,
+
+    #[error("Model not trained. Call fit() before calling this method")]
+    ModelNotTrained,
+
+    #[error("I/O error: {0}")]
+    Io(#[from] std::io::Error),
+
+    #[error("PQ Residual error: {0}")]
+    Pq(#[from] PQError),
+}
+
+#[derive(Error, Debug)]
 pub enum PQError {
     #[error("Number of clusters (ks) must be between 1 and 2**32 - 1. Got {0}")]
     InvalidKs(u32),
