@@ -57,7 +57,6 @@ impl PQResidual {
             return Err(PQResidualError::MissingProductQuantizer);
         };
 
-        // Use ok_or to handle if max() fails (though it won't if pqs is not empty)
         let m = pqs
             .iter()
             .map(|pq| pq.m)
@@ -190,7 +189,6 @@ impl PQResidual {
             }
         }
 
-        // codebook_file is dropped automatically here
         Ok(())
     }
 
