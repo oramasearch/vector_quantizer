@@ -1,0 +1,6 @@
+*.lock
+*.toml
+*.py
+*.txt
+*.md
+*.yml

@@ -22,6 +22,8 @@ log = "0.4.22"
 thiserror = "2.0.3"
 env_logger = "0.11.5"
 serde = { version = "1.0.215", features = ["derive"] }
+numpy = "0.23.0"
+num-traits = "0.2.19"
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }
