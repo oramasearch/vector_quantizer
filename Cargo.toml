@@ -1,6 +1,6 @@
 [package]
 name = "vector_quantizer"
-version = "0.0.2"
+version = "0.0.3"
 edition = "2021"
 authors = ["Michele Riva <michele@orama.com>"]
 description = "Simple vector quantization utilities and functions."
