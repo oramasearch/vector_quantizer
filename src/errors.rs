@@ -69,4 +69,13 @@ pub enum PQError {
 
     #[error("Unsupported initialization method")]
     InvalidInitMethod,
+
+    #[error("Unable to create dump file on disk")]
+    IoError,
+
+    #[error("Unable to serialize trained quantizer to disk")]
+    SerializationError,
+
+    #[error("Unable to deserialize trained quantizer from disk")]
+    DeserializationError,
 }
